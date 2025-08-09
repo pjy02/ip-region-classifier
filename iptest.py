@@ -11,6 +11,8 @@ import requests
 import json
 import time
 import argparse
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional
 from collections import defaultdict
 
@@ -307,10 +309,11 @@ class IPClassifier:
             print(f"未知错误 for IP {ip}: {e}")
             return None
     
-    def classify_ips_by_country(self, ip_list: list[str]) -> tuple[dict[str, list[dict]], list[str]]:
+    def classify_ips_by_country(self, ip_list: list[str], max_workers: int = 5) -> tuple[dict[str, list[dict]], list[str]]:
         """
-        按国家对IP列表进行分类
+        按国家对IP列表进行分类（多线程并发版本）
         :param ip_list: IP地址列表
+        :param max_workers: 最大线程数，默认为5
         :return: (按国家分类的IP信息字典, 失败的IP列表)
         """
         classified_ips = defaultdict(list)
@@ -318,20 +321,52 @@ class IPClassifier:
         total_ips = len(ip_list)
         
         print(f"开始处理 {total_ips} 个IP地址...")
+        print(f"使用 {max_workers} 个线程并发查询...")
         
-        for i, ip in enumerate(ip_list, 1):
-            print(f"处理进度: {i}/{total_ips} ({i/total_ips*100:.1f}%) - {ip}")
+        # 创建线程锁，用于线程安全的进度更新
+        progress_lock = threading.Lock()
+        completed_count = 0
+        
+        def process_single_ip(ip):
+            """
+            处理单个IP的函数，供线程池使用
+            """
+            nonlocal completed_count
             
-            location_data = self.get_ip_location(ip)
-            if location_data:
-                country = location_data['country']
-                classified_ips[country].append(location_data)
-            else:
-                failed_ips.append(ip)
+            try:
+                location_data = self.get_ip_location(ip)
+                
+                with progress_lock:
+                    completed_count += 1
+                    progress = completed_count / total_ips * 100
+                    print(f"处理进度: {completed_count}/{total_ips} ({progress:.1f}%) - {ip}")
+                
+                if location_data:
+                    return ip, location_data, None
+                else:
+                    return ip, None, "查询失败"
+                    
+            except Exception as e:
+                with progress_lock:
+                    completed_count += 1
+                    progress = completed_count / total_ips * 100
+                    print(f"处理进度: {completed_count}/{total_ips} ({progress:.1f}%) - {ip} (错误: {str(e)})")
+                return ip, None, str(e)
+        
+        # 使用线程池并发处理
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 提交所有任务
+            future_to_ip = {executor.submit(process_single_ip, ip): ip for ip in ip_list}
             
-            # 添加延迟以避免API限制（ipapi.is限制）
-            if i < total_ips:
-                time.sleep(1)  # 1秒延迟，避免触发API限制
+            # 处理完成的任务
+            for future in as_completed(future_to_ip):
+                ip, location_data, error = future.result()
+                
+                if location_data:
+                    country = location_data['country']
+                    classified_ips[country].append(location_data)
+                else:
+                    failed_ips.append(ip)
         
         return dict(classified_ips), failed_ips
     
@@ -705,7 +740,7 @@ def get_user_input(prompt: str, default: str = None) -> str:
 def interactive_mode() -> tuple:
     """
     交互式模式，获取用户输入
-    :return: (input_file, output_file, api_key, country_files_dir, merge_mode)
+    :return: (input_file, output_file, api_key, country_files_dir, merge_mode, max_workers)
     """
     print("\n=== 交互式配置 ===")
     
@@ -727,11 +762,23 @@ def interactive_mode() -> tuple:
     # 获取国家文件输出目录
     country_files_dir = get_user_input("请输入国家分类文件输出目录", "country_files")
     
+    # 获取并发线程数
+    while True:
+        try:
+            threads_input = get_user_input("请输入并发线程数（1-20，默认: 5）", "5")
+            max_workers = int(threads_input)
+            if 1 <= max_workers <= 20:
+                break
+            else:
+                print("线程数必须在1-20之间，请重新输入。")
+        except ValueError:
+            print("请输入有效的数字，请重新输入。")
+    
     # 询问是否使用合并模式
     merge_input = get_user_input("是否使用合并模式（y/n，默认: n）", "n")
     merge_mode = merge_input.lower() in ['y', 'yes', '是']
     
-    return input_file, output_file, api_key, country_files_dir, merge_mode
+    return input_file, output_file, api_key, country_files_dir, merge_mode, max_workers
 
 def main():
     """
@@ -742,10 +789,16 @@ def main():
     parser.add_argument('-o', '--output', default='iptest_results.json', help='输出文件名（默认: iptest_results.json）')
     parser.add_argument('-k', '--api-key', help='ipapi.is的API密钥（可选，默认使用内置密钥）')
     parser.add_argument('-d', '--country-dir', default='country_files', help='国家分类文件输出目录（默认: country_files）')
+    parser.add_argument('-t', '--threads', type=int, default=5, help='并发线程数（1-20，默认: 5）')
     parser.add_argument('--merge', action='store_true', help='合并模式：将新IP合并到现有文件中，而不是覆盖')
     parser.add_argument('--no-interactive', action='store_true', help='非交互模式，使用默认值')
     
     args = parser.parse_args()
+    
+    # 验证线程数参数
+    if not (1 <= args.threads <= 20):
+        print("错误：线程数必须在1-20之间")
+        return
     
     print("IP地区分类工具")
     print("使用ipapi.is API服务\n")
@@ -753,13 +806,14 @@ def main():
     # 检查是否使用交互模式
     if not args.no_interactive and len(sys.argv) == 1:
         # 没有命令行参数，使用交互模式
-        input_file, output_file, api_key, country_files_dir, merge_mode = interactive_mode()
+        input_file, output_file, api_key, country_files_dir, merge_mode, max_workers = interactive_mode()
     else:
         # 使用命令行参数
         input_file = args.input_file
         output_file = args.output
         api_key = args.api_key
         country_files_dir = args.country_dir
+        max_workers = args.threads
         merge_mode = args.merge
     
     # 加载IP列表
@@ -777,7 +831,7 @@ def main():
     classifier = IPClassifier(api_key)
     
     # 进行分类
-    classified_ips, failed_ips = classifier.classify_ips_by_country(ip_list)
+    classified_ips, failed_ips = classifier.classify_ips_by_country(ip_list, max_workers)
     
     # 打印摘要
     classifier.print_summary(classified_ips)
