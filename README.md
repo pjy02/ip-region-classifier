@@ -89,17 +89,71 @@ dns 地区分类/
 - 自动添加请求延迟避免API限制
 - 提供实时处理进度显示
 
+## GitHub Codespaces 使用方法
+
+本项目支持在GitHub Codespaces中直接运行，无需本地安装Python环境。Codespaces会自动配置完整的开发环境，包括Python、依赖包和网络连接。
+
+### 快速开始
+
+1. **Fork项目**
+   - 访问项目主页
+   - 点击右上角的"Fork"按钮
+   - 选择要Fork到的账户
+
+2. **创建Codespace**
+   - 在Fork后的项目页面，点击绿色的"Code"按钮
+   - 在弹出的菜单中点击"Codespaces"选项卡
+   - 点击"Create codespace on main"按钮
+
+3. **等待构建完成**
+   - Codespaces会自动构建开发环境
+   - 构建过程通常需要2-5分钟
+   - 构建完成后会自动打开基于Web的VS Code界面
+
+4. **开始使用**
+   - 在终端中输入以下命令运行项目：
+   ```bash
+   python iptest.py
+   ```
+   - 或者使用交互式模式进行配置
+
+### Codespaces优势
+
+- **零配置**：无需安装Python、依赖包或配置环境
+- **云端运行**：直接在云端运行，不受本地网络限制
+- **完整环境**：预装所有必要的开发工具和依赖
+- **持久化**：工作空间会自动保存，下次继续使用
+- **协作友好**：支持多人协作开发和代码审查
+
+### 注意事项
+
+- Codespaces有使用时长限制，免费账户每月有一定额度
+- 网络请求通过GitHub的网络出口，某些地区可能有访问限制
+- 建议在使用完成后删除Codespace以节省配额
+
 ## 系统要求
 
+### 本地运行要求
 - Python 3.6+
 - requests库
 - 网络连接（访问ipapi.is API）
 
+### Codespaces运行要求
+- GitHub账户
+- 稳定的网络连接
+- 浏览器支持（推荐Chrome、Firefox、Edge）
+
 ## 安装依赖
+
+### 本地安装
 
 ```bash
 pip install -r requirements.txt
 ```
+
+### Codespaces中
+
+Codespaces会自动安装所有依赖，无需手动操作。
 
 ## 使用方法
 
