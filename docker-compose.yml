@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  ip-classifier:
+    build: .
+    container_name: ip-region-classifier
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./ips.txt:/app/ips.txt:ro
+    environment:
+      - PYTHONPATH=/app
+      - MAX_THREADS=8
+      - API_TIMEOUT=10
+    command: python iptest.py ips.txt -t 8
+    restart: unless-stopped
+    networks:
+      - ip-classifier-network
+
+  # 可选：添加Redis缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: ip-classifier-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - ip-classifier-network
+    command: redis-server --appendonly yes
+
+  # 可选：添加Web界面（如果需要的话）
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: ip-classifier-web
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./output:/app/output
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - ip-classifier-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  ip-classifier-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 开发环境配置
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ip-classifier-dev
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./output:/app/output
+    environment:
+      - PYTHONPATH=/app
+      - DEBUG=true
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    networks:
+      - ip-classifier-network
+    profiles:
+      - dev
+
+# 测试环境配置
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ip-classifier-test
+    volumes:
+      - ./tests:/app/tests
+      - ./test_data:/app/test_data
+    environment:
+      - PYTHONPATH=/app
+      - TEST_MODE=true
+    command: python -m pytest tests/ -v
+    networks:
+      - ip-classifier-network
+    profiles:
+      - test
