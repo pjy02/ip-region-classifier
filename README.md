@@ -1,43 +1,8 @@
 # IP地区分类工具
 
-一个基于Python的IP地址地理位置查询和分类工具，支持多线程并发查询，可以快速批量处理大量IP地址。支持GitHub Codespaces、Docker部署和多种运行方式。
+这是一个使用ipapi.is API服务对IP地址进行地理位置分类的Python脚本。该工具能够批量处理IP地址，提供详细的地理位置信息，并支持增量更新和IP排序功能。
 
-## 🚀 快速开始
-
-### GitHub Codespaces (推荐)
-
-点击下方按钮直接在浏览器中打开和运行项目：
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=YOUR_USERNAME/ip-region-classifier)
-
-### 本地运行
-
-```bash
-# 克隆项目
-git clone https://github.com/YOUR_USERNAME/ip-region-classifier.git
-cd ip-region-classifier
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 运行程序
-python iptest.py
-```
-
-### Docker运行
-
-```bash
-# 构建镜像
-docker build -t ip-region-classifier .
-
-# 运行容器
-docker run -v $(pwd)/data:/app/data -v $(pwd)/output:/app/output ip-region-classifier
-
-# 或使用Docker Compose
-docker-compose up ip-classifier
-```
-
-## 📦 项目目录结构
+## 项目目录结构
 
 ```
 dns 地区分类/
@@ -47,15 +12,7 @@ dns 地区分类/
 ├── ips.txt                  # 默认IP地址输入文件
 ├── iptest_results.json      # 默认JSON格式输出文件
 ├── ip_classification_results.json  # 旧版JSON输出文件
-├── country_files/           # 国家分类文件目录
-├── Dockerfile               # Docker镜像配置
-├── docker-compose.yml       # Docker Compose配置
-├── .devcontainer/           # Codespaces配置目录
-│   ├── devcontainer.json    # 开发容器配置
-│   ├── codespaces-start.sh  # 启动脚本
-│   └── README.md            # Codespaces使用指南
-└── .github/workflows/       # GitHub Actions工作流
-    └── ci.yml               # CI/CD配置
+└── country_files/           # 国家分类文件目录
 ```
 
 ## 文件说明
@@ -72,7 +29,6 @@ dns 地区分类/
 - **IP排序**：支持按IP数值大小排序，确保输出结果有序
 - **批量处理**：支持批量处理多个IP地址，自动添加延迟避免API限制
 - **多格式输出**：支持JSON格式输出和国家分类文件输出
-- **多线程并发**：支持多线程并发查询，大幅提升处理速度
 
 ### 📦 requirements.txt
 **Python依赖包列表**，定义了项目运行所需的第三方库：
@@ -99,18 +55,6 @@ dns 地区分类/
 
 ### 📁 country_files/
 **国家分类文件目录**，用于存储按国家/地区分类的文本文件。每个文件以国家代码命名（如US.txt、CN.txt），包含对应国家的所有IP地址，按数值大小排序。
-
-### 🐳 Dockerfile
-**Docker镜像配置文件**，定义了项目的Docker镜像构建过程，支持一键容器化部署。
-
-### 🐳 docker-compose.yml
-**Docker Compose配置文件**，支持多容器编排和一键启动服务。
-
-### 🌐 .devcontainer/
-**Codespaces配置目录**，包含GitHub Codespaces的完整配置，支持一键云端开发环境。
-
-### 🔄 .github/workflows/
-**GitHub Actions工作流目录**，包含CI/CD自动化流程配置。
 
 ## 功能特点
 
@@ -145,31 +89,19 @@ dns 地区分类/
 - 自动添加请求延迟避免API限制
 - 提供实时处理进度显示
 
-## 📋 系统要求
+## 系统要求
 
-- Python 3.7+
+- Python 3.6+
 - requests库
 - 网络连接（访问ipapi.is API）
-- 可选：Docker、Docker Compose
 
-## 🔧 安装依赖
+## 安装依赖
 
-### 本地安装
 ```bash
 pip install -r requirements.txt
 ```
 
-### Docker安装
-```bash
-# 确保已安装Docker和Docker Compose
-docker --version
-docker-compose --version
-```
-
-### GitHub Codespaces
-无需安装，直接在浏览器中使用！
-
-## 🎯 使用方法
+## 使用方法
 
 ### 1. 命令行模式
 
@@ -189,9 +121,6 @@ python iptest.py -k your_api_key
 # 指定国家文件输出目录
 python iptest.py -c ./country_output
 
-# 指定线程数（多线程模式）
-python iptest.py -t 8
-
 # 查看帮助
 python iptest.py --help
 ```
@@ -207,30 +136,6 @@ IP地区分类工具
 请输入ipapi.is的API密钥 [可选，直接回车跳过]: 
 请输入输出文件名 [默认: iptest_results.json]: 
 请输入国家文件输出目录 [可选，直接回车跳过]: 
-请输入线程数 [默认: 5]: 
-```
-
-### 3. Docker模式
-
-```bash
-# 使用Docker运行
-sudo docker run -v $(pwd)/ips.txt:/app/ips.txt -v $(pwd)/output:/app/output ip-region-classifier
-
-# 指定线程数
-sudo docker run -e MAX_THREADS=10 -v $(pwd)/ips.txt:/app/ips.txt ip-region-classifier python iptest.py ips.txt -t 10
-```
-
-### 4. Docker Compose模式
-
-```bash
-# 启动服务
-docker-compose up ip-classifier
-
-# 后台运行
-docker-compose up -d
-
-# 查看日志
-docker-compose logs -f
 ```
 
 ### 3. 输入文件格式
