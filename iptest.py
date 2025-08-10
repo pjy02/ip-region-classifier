@@ -140,7 +140,13 @@ CHINESE_TRANSLATIONS = {
     'zip': '邮编',
     'local_time': '本地时间',
     'local_time_unix': '本地时间戳',
-    'elapsed_ms': '耗时(毫秒)'
+    'elapsed_ms': '耗时(毫秒)',
+    
+    # 嵌套对象名称映射
+    'company': '公司信息',
+    'abuse': '滥用联系人信息',
+    'asn': '自治系统信息',
+    'location': '位置信息'
 }
 
 def translate_to_chinese(text: str) -> str:
@@ -189,22 +195,11 @@ class IPClassifier:
             if data.get('error'):
                 print(f"API错误 for IP {ip}: {data.get('error', 'Unknown error')}")
                 return None
-                
-            # 获取完整的检测信息
-            location = data.get('location', {})
-            asn_info = data.get('asn', {})
-            company_info = data.get('company', {})
-            abuse_info = data.get('abuse', {})
-            datacenter_info = data.get('datacenter', {})
             
-            # 构建完整的IP信息
-            complete_info = {
-                # 基本信息
+            # 直接使用官方API的原始结构，不翻译值
+            translated_data = {
                 'ip': data.get('ip', ip),
                 'rir': data.get('rir'),
-                'elapsed_ms': data.get('elapsed_ms'),
-                
-                # 标识字段
                 'is_bogon': data.get('is_bogon'),
                 'is_mobile': data.get('is_mobile'),
                 'is_satellite': data.get('is_satellite'),
@@ -214,90 +209,78 @@ class IPClassifier:
                 'is_proxy': data.get('is_proxy'),
                 'is_vpn': data.get('is_vpn'),
                 'is_abuser': data.get('is_abuser'),
+                'elapsed_ms': data.get('elapsed_ms'),
                 
-                # 位置信息
-                'country': location.get('country', 'Unknown'),
-                'country_code': location.get('country_code', 'Unknown'),
-                'region': location.get('state', 'Unknown'),
-                'city': location.get('city', 'Unknown'),
-                'latitude': location.get('latitude'),
-                'longitude': location.get('longitude'),
-                'continent': location.get('continent'),
-                'in_eu': location.get('is_eu_member'),
-                'postal': location.get('zip'),
-                'timezone': location.get('timezone'),
-                'calling_code': location.get('calling_code'),
-                'currency_code': location.get('currency_code'),
-                'local_time': location.get('local_time'),
-                'local_time_unix': location.get('local_time_unix'),
-                'is_dst': location.get('is_dst'),
+                # company信息（嵌套结构）
+                'company': {
+                    'name': data.get('company', {}).get('name'),
+                    'abuser_score': data.get('company', {}).get('abuser_score'),
+                    'domain': data.get('company', {}).get('domain'),
+                    'type': data.get('company', {}).get('type'),
+                    'network': data.get('company', {}).get('network'),
+                    'whois': data.get('company', {}).get('whois')
+                },
                 
-                # ASN信息
-                'asn': asn_info.get('asn'),
-                'asn_route': asn_info.get('route'),
-                'asn_descr': asn_info.get('descr'),
-                'asn_country': asn_info.get('country'),
-                'asn_active': asn_info.get('active'),
-                'asn_org': asn_info.get('org'),
-                'asn_domain': asn_info.get('domain'),
-                'asn_abuse': asn_info.get('abuse'),
-                'asn_type': asn_info.get('type'),
-                'asn_updated': asn_info.get('updated'),
-                'asn_rir': asn_info.get('rir'),
-                'asn_abuser_score': asn_info.get('abuser_score'),
+                # abuse信息（嵌套结构）
+                'abuse': {
+                    'name': data.get('abuse', {}).get('name'),
+                    'address': data.get('abuse', {}).get('address'),
+                    'email': data.get('abuse', {}).get('email'),
+                    'phone': data.get('abuse', {}).get('phone')
+                },
                 
-                # 公司信息
-                'company_name': company_info.get('name'),
-                'company_abuser_score': company_info.get('abuser_score'),
-                'company_domain': company_info.get('domain'),
-                'company_type': company_info.get('type'),
-                'company_network': company_info.get('network'),
-                'company_whois': company_info.get('whois'),
+                # asn信息（嵌套结构）
+                'asn': {
+                    'asn': data.get('asn', {}).get('asn'),
+                    'abuser_score': data.get('asn', {}).get('abuser_score'),
+                    'route': data.get('asn', {}).get('route'),
+                    'descr': data.get('asn', {}).get('descr'),
+                    'country': data.get('asn', {}).get('country'),
+                    'active': data.get('asn', {}).get('active'),
+                    'org': data.get('asn', {}).get('org'),
+                    'domain': data.get('asn', {}).get('domain'),
+                    'abuse': data.get('asn', {}).get('abuse'),
+                    'type': data.get('asn', {}).get('type'),
+                    'updated': data.get('asn', {}).get('updated'),
+                    'rir': data.get('asn', {}).get('rir'),
+                    'whois': data.get('asn', {}).get('whois')
+                },
                 
-                # 滥用信息
-                'abuse_name': abuse_info.get('name'),
-                'abuse_address': abuse_info.get('address'),
-                'abuse_email': abuse_info.get('email'),
-                'abuse_phone': abuse_info.get('phone'),
-                
-                # 数据中心信息
-                'datacenter_network': datacenter_info.get('network'),
-                'datacenter_name': datacenter_info.get('datacenter'),
-                
-                # 兼容性字段（保持原有结构）
-                'org': asn_info.get('org'),
-                'timezone': location.get('timezone'),
-                'utc_offset': None,  # ipapi.is不直接提供此字段
-                'country_calling_code': location.get('calling_code'),
-                'currency': location.get('currency_code'),
-                'languages': None,  # ipapi.is不直接提供此字段
-                'country_flag': None,  # ipapi.is不提供此字段
-                'country_flag_emoji': None,  # ipapi.is不提供此字段
-                'country_area': None,  # ipapi.is不提供此字段
-                'country_population': None  # ipapi.is不提供此字段
+                # location信息（嵌套结构）
+                'location': {
+                    'is_eu_member': data.get('location', {}).get('is_eu_member'),
+                    'calling_code': data.get('location', {}).get('calling_code'),
+                    'currency_code': data.get('location', {}).get('currency_code'),
+                    'continent': data.get('location', {}).get('continent'),
+                    'country': data.get('location', {}).get('country'),
+                    'country_code': data.get('location', {}).get('country_code'),
+                    'state': data.get('location', {}).get('state'),
+                    'city': data.get('location', {}).get('city'),
+                    'latitude': data.get('location', {}).get('latitude'),
+                    'longitude': data.get('location', {}).get('longitude'),
+                    'zip': data.get('location', {}).get('zip'),
+                    'timezone': data.get('location', {}).get('timezone'),
+                    'local_time': data.get('location', {}).get('local_time'),
+                    'local_time_unix': data.get('location', {}).get('local_time_unix'),
+                    'is_dst': data.get('location', {}).get('is_dst')
+                }
             }
             
-            # 翻译成中文
-            translated_info = {}
-            for key, value in complete_info.items():
-                if key in ['ip', 'country_code', 'latitude', 'longitude', 'asn', 'asn_route', 'utc_offset', 
-                          'country_area', 'country_population', 'in_eu', 'postal', 'local_time_unix', 
-                          'elapsed_ms', 'is_bogon', 'is_mobile', 'is_satellite', 'is_crawler', 
-                          'is_datacenter', 'is_tor', 'is_proxy', 'is_vpn', 'is_abuser', 'asn_active', 
-                          'is_dst']:
-                    # 这些字段保持原值
-                    translated_info[key] = value
-                elif isinstance(value, str):
-                    # 字符串字段进行翻译
-                    translated_info[key] = translate_to_chinese(value)
-                elif isinstance(value, bool):
-                    # 布尔值转换为中文描述
-                    translated_info[key] = '是' if value else '否'
-                else:
-                    # 其他类型保持原值
-                    translated_info[key] = value
+            # 将布尔值转换为中文描述
+            for key, value in translated_data.items():
+                if isinstance(value, bool) and key.startswith('is_'):
+                    translated_data[key] = '是' if value else '否'
             
-            return translated_info
+            # 处理嵌套结构中的布尔值
+            for section in ['company', 'abuse', 'asn', 'location']:
+                if section in translated_data and isinstance(translated_data[section], dict):
+                    for key, value in translated_data[section].items():
+                        if isinstance(value, bool):
+                            translated_data[section][key] = '是' if value else '否'
+                        elif isinstance(value, str):
+                            translated_data[section][key] = translate_to_chinese(value)
+            
+            return translated_data
             
         except requests.RequestException as e:
             print(f"网络请求错误 for IP {ip}: {e}")
@@ -363,7 +346,12 @@ class IPClassifier:
                 ip, location_data, error = future.result()
                 
                 if location_data:
-                    country = location_data['country']
+                    # 从嵌套结构中获取国家信息
+                    if 'location' in location_data and 'country' in location_data['location']:
+                        country = location_data['location']['country']
+                    else:
+                        # 如果没有位置信息，使用默认值
+                        country = 'Unknown'
                     classified_ips[country].append(location_data)
                 else:
                     failed_ips.append(ip)
@@ -395,7 +383,10 @@ class IPClassifier:
         
         for country, ips in classified_ips.items():
             # 使用国家代码作为文件名，如果没有则使用国家名称的拼音或英文
-            country_code = ips[0].get('country_code', 'Unknown') if ips else 'Unknown'
+            if ips and 'location' in ips[0] and 'country_code' in ips[0]['location']:
+                country_code = ips[0]['location']['country_code']
+            else:
+                country_code = 'Unknown'
             filename = os.path.join(actual_output_dir, f"{country_code}.txt")
             
             try:
@@ -445,129 +436,88 @@ class IPClassifier:
         except:
             return (0, 0, 0, 0)
     
-    def save_results(self, classified_ips: Dict[str, List[Dict]], output_file: str = 'iptest_results.json'):
+    def translate_field_names_to_chinese(self, data: Dict) -> Dict:
         """
-        保存分类结果到JSON文件，将字段名也转换为中文
-        支持增量更新：新IP添加，已有IP的覆盖旧数据，并按IP从小到大排序
+        将字典中的字段名翻译成中文
+        :param data: 原始数据字典
+        :return: 字段名翻译后的字典
+        """
+        if not isinstance(data, dict):
+            return data
+        
+        translated_data = {}
+        for key, value in data.items():
+            # 翻译字段名
+            chinese_key = CHINESE_TRANSLATIONS.get(key, key)
+            
+            # 如果值是字典，递归翻译
+            if isinstance(value, dict):
+                translated_data[chinese_key] = self.translate_field_names_to_chinese(value)
+            # 如果值是列表，对列表中的每个元素进行翻译
+            elif isinstance(value, list):
+                translated_data[chinese_key] = [
+                    self.translate_field_names_to_chinese(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                translated_data[chinese_key] = value
+        
+        return translated_data
+    
+    def save_results(self, classified_ips: Dict[str, List[Dict]], output_file: str):
+        """
+        保存分类结果到JSON文件，支持增量更新，字段名翻译成中文
         :param classified_ips: 分类结果
-        :param output_file: 输出文件名
+        :param output_file: 输出文件路径
         """
         try:
-            # 字段名映射表（英文 -> 中文）
-            field_name_mapping = {
-                'ip': 'IP地址',
-                'rir': '区域互联网注册机构',
-                'elapsed_ms': '查询耗时',
-                'is_bogon': '是否为保留IP',
-                'is_mobile': '是否为移动网络',
-                'is_satellite': '是否为卫星网络',
-                'is_crawler': '是否为爬虫',
-                'is_datacenter': '是否为数据中心',
-                'is_tor': '是否为Tor网络',
-                'is_proxy': '是否为代理',
-                'is_vpn': '是否为VPN',
-                'is_abuser': '是否为滥用者',
-                'country': '国家',
-                'country_code': '国家代码',
-                'region': '地区/州',
-                'city': '城市',
-                'latitude': '纬度',
-                'longitude': '经度',
-                'continent': '大洲',
-                'in_eu': '是否为欧盟成员国',
-                'postal': '邮政编码',
-                'timezone': '时区',
-                'calling_code': '电话代码',
-                'currency_code': '货币代码',
-                'local_time': '本地时间',
-                'local_time_unix': '本地时间戳',
-                'is_dst': '是否为夏令时',
-                'asn': '自治系统号',
-                'asn_route': '路由',
-                'asn_descr': '描述',
-                'asn_country': 'ASN国家',
-                'asn_active': 'ASN是否活跃',
-                'asn_org': 'ASN组织',
-                'asn_domain': 'ASN域名',
-                'asn_abuse': 'ASN滥用联系人',
-                'asn_type': 'ASN类型',
-                'asn_updated': 'ASN更新时间',
-                'asn_rir': 'ASN区域注册机构',
-                'asn_abuser_score': 'ASN滥用评分',
-                'company_name': '公司名称',
-                'company_abuser_score': '公司滥用评分',
-                'company_domain': '公司域名',
-                'company_type': '公司类型',
-                'company_network': '公司网络范围',
-                'company_whois': '公司WHOIS信息',
-                'abuse_name': '滥用联系人姓名',
-                'abuse_address': '滥用联系人地址',
-                'abuse_email': '滥用联系人邮箱',
-                'abuse_phone': '滥用联系人电话',
-                'datacenter_network': '数据中心网络',
-                'datacenter_name': '数据中心名称',
-                'org': '组织',
-                'utc_offset': 'UTC偏移量',
-                'country_calling_code': '国家电话代码',
-                'currency': '货币',
-                'languages': '语言',
-                'country_flag': '国家旗帜',
-                'country_flag_emoji': '国家旗帜表情',
-                'country_area': '国家面积',
-                'country_population': '国家人口'
-            }
-            
-            # 创建新的分类结果，将字段名转换为中文
-            new_chinese_classified_ips = {}
-            for country, ip_list in classified_ips.items():
-                chinese_ip_list = []
-                for ip_data in ip_list:
-                    chinese_ip_data = {}
-                    for eng_field, value in ip_data.items():
-                        chinese_field = field_name_mapping.get(eng_field, eng_field)
-                        chinese_ip_data[chinese_field] = value
-                    chinese_ip_list.append(chinese_ip_data)
-                new_chinese_classified_ips[country] = chinese_ip_list
+            # 确保输出目录存在
+            output_dir = os.path.dirname(output_file)
+            if output_dir:  # 只有当目录路径不为空时才创建目录
+                os.makedirs(output_dir, exist_ok=True)
             
             # 尝试读取现有数据
-            existing_chinese_classified_ips = {}
+            existing_classified_ips = {}
             if os.path.exists(output_file):
                 try:
                     with open(output_file, 'r', encoding='utf-8') as f:
-                        existing_chinese_classified_ips = json.load(f)
+                        existing_classified_ips = json.load(f)
                     print(f"已读取现有数据: {output_file}")
                 except Exception as e:
                     print(f"读取现有文件失败，将创建新文件: {e}")
             
             # 合并数据：新IP添加，已有IP的覆盖旧数据
-            merged_chinese_classified_ips = existing_chinese_classified_ips.copy()
+            merged_classified_ips = existing_classified_ips.copy()
             
-            for country, new_ip_list in new_chinese_classified_ips.items():
-                if country not in merged_chinese_classified_ips:
-                    merged_chinese_classified_ips[country] = []
+            for country, new_ip_list in classified_ips.items():
+                if country not in merged_classified_ips:
+                    merged_classified_ips[country] = []
                 
                 # 创建IP到数据的映射，方便快速查找
-                existing_ip_map = {ip_data['IP地址']: ip_data for ip_data in merged_chinese_classified_ips[country]}
+                existing_ip_map = {ip_data['ip']: ip_data for ip_data in merged_classified_ips[country]}
                 
                 for new_ip_data in new_ip_list:
-                    ip_address = new_ip_data['IP地址']
+                    ip_address = new_ip_data['ip']
                     # 覆盖已有IP的数据或添加新IP
                     existing_ip_map[ip_address] = new_ip_data
                 
                 # 转换回列表并按IP排序
                 merged_ip_list = list(existing_ip_map.values())
-                merged_ip_list.sort(key=lambda x: self.ip_to_tuple(x['IP地址']))
-                merged_chinese_classified_ips[country] = merged_ip_list
+                merged_ip_list.sort(key=lambda x: self.ip_to_tuple(x['ip']))
+                merged_classified_ips[country] = merged_ip_list
             
             # 删除空的国家
-            empty_countries = [country for country, ip_list in merged_chinese_classified_ips.items() if not ip_list]
+            empty_countries = [country for country, ip_list in merged_classified_ips.items() if not ip_list]
             for country in empty_countries:
-                del merged_chinese_classified_ips[country]
+                del merged_classified_ips[country]
+            
+            # 将字段名翻译成中文
+            translated_classified_ips = self.translate_field_names_to_chinese(merged_classified_ips)
             
             # 保存合并后的数据
             with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(merged_chinese_classified_ips, f, ensure_ascii=False, indent=2)
-            print(f"结果已保存到: {output_file} (增量更新，按IP排序)")
+                json.dump(translated_classified_ips, f, ensure_ascii=False, indent=2)
+            print(f"结果已保存到: {output_file} (增量更新，按IP排序，字段名已翻译成中文)")
         except Exception as e:
             print(f"保存文件时出错: {e}")
     
@@ -591,115 +541,82 @@ class IPClassifier:
                 print("-" * 30)
                 
                 # 基本信息
-                basic_fields = {
-                    'country': '国家',
-                    'country_code': '国家代码',
-                    'region': '地区/州',
-                    'city': '城市',
-                    'continent': '大洲',
-                    'postal': '邮政编码',
-                    'timezone': '时区',
-                    'local_time': '本地时间',
-                    'calling_code': '电话代码',
-                    'currency_code': '货币代码'
-                }
+                print(f"区域互联网注册机构: {ip_data.get('rir', 'Unknown')}")
+                print(f"查询耗时: {ip_data.get('elapsed_ms', 'Unknown')}毫秒")
                 
-                for field, chinese_name in basic_fields.items():
-                    value = ip_data.get(field)
-                    if value and value != 'Unknown':
-                        print(f"{chinese_name}: {value}")
-                
-                # 坐标信息
-                if ip_data.get('latitude') and ip_data.get('longitude'):
-                    print(f"坐标: {ip_data['latitude']}, {ip_data['longitude']}")
-                
-                # 标识字段
-                print("\n【网络特征】")
-                flag_fields = {
-                    'is_bogon': '是否为保留IP',
-                    'is_mobile': '是否为移动网络',
-                    'is_satellite': '是否为卫星网络',
-                    'is_crawler': '是否为爬虫',
-                    'is_datacenter': '是否为数据中心',
-                    'is_tor': '是否为Tor网络',
-                    'is_proxy': '是否为代理',
-                    'is_vpn': '是否为VPN',
-                    'is_abuser': '是否为滥用者',
-                    'is_eu_member': '是否为欧盟成员国',
-                    'is_dst': '是否为夏令时'
-                }
-                
-                for field, chinese_name in flag_fields.items():
-                    value = ip_data.get(field)
-                    if value is not None:
-                        print(f"{chinese_name}: {value}")
-                
-                # ASN信息
-                if ip_data.get('asn'):
-                    print("\n【自治系统信息】")
-                    asn_fields = {
-                        'asn': '自治系统号',
-                        'asn_org': '组织',
-                        'asn_route': '路由',
-                        'asn_descr': '描述',
-                        'asn_country': '国家',
-                        'asn_type': '类型',
-                        'asn_abuser_score': '滥用评分'
+                # 位置信息
+                if 'location' in ip_data:
+                    location = ip_data['location']
+                    print(f"\n【位置信息】")
+                    print(f"国家: {translate_to_chinese(location.get('country', 'Unknown'))}")
+                    print(f"国家代码: {location.get('country_code', 'Unknown')}")
+                    print(f"地区/州: {translate_to_chinese(location.get('state', 'Unknown'))}")
+                    print(f"城市: {translate_to_chinese(location.get('city', 'Unknown'))}")
+                    print(f"大洲: {translate_to_chinese(location.get('continent', 'Unknown'))}")
+                    print(f"邮政编码: {location.get('zip', 'Unknown')}")
+                    print(f"时区: {location.get('timezone', 'Unknown')}")
+                    print(f"本地时间: {location.get('local_time', 'Unknown')}")
+                    print(f"电话代码: {location.get('calling_code', 'Unknown')}")
+                    print(f"货币代码: {location.get('currency_code', 'Unknown')}")
+                    
+                    if location.get('latitude') and location.get('longitude'):
+                        print(f"坐标: {location['latitude']}, {location['longitude']}")
+                    
+                    # 标识字段
+                    print("\n【网络特征】")
+                    flag_fields = {
+                        'is_bogon': '是否为保留IP',
+                        'is_mobile': '是否为移动网络',
+                        'is_satellite': '是否为卫星网络',
+                        'is_crawler': '是否为爬虫',
+                        'is_datacenter': '是否为数据中心',
+                        'is_tor': '是否为Tor网络',
+                        'is_proxy': '是否为代理',
+                        'is_vpn': '是否为VPN',
+                        'is_abuser': '是否为滥用者'
                     }
                     
-                    for field, chinese_name in asn_fields.items():
+                    for field, chinese_name in flag_fields.items():
                         value = ip_data.get(field)
-                        if value and value != 'Unknown':
-                            print(f"{chinese_name}: {value}")
-                
-                # 公司信息
-                if ip_data.get('company_name'):
-                    print("\n【公司信息】")
-                    company_fields = {
-                        'company_name': '公司名称',
-                        'company_domain': '域名',
-                        'company_type': '类型',
-                        'company_abuser_score': '滥用评分',
-                        'company_network': '网络范围'
-                    }
+                        if value is not None:
+                            print(f"{chinese_name}: {'是' if value else '否'}")
                     
-                    for field, chinese_name in company_fields.items():
-                        value = ip_data.get(field)
-                        if value and value != 'Unknown':
-                            print(f"{chinese_name}: {value}")
-                
-                # 滥用联系人信息
-                if ip_data.get('abuse_name'):
-                    print("\n【滥用联系人】")
-                    abuse_fields = {
-                        'abuse_name': '联系人',
-                        'abuse_email': '邮箱',
-                        'abuse_phone': '电话'
-                    }
+                    # ASN信息
+                    if 'asn' in ip_data:
+                        asn = ip_data['asn']
+                        print("\n【自治系统信息】")
+                        print(f"自治系统号: {asn.get('asn', 'Unknown')}")
+                        print(f"组织: {translate_to_chinese(asn.get('org', 'Unknown'))}")
+                        print(f"路由: {asn.get('route', 'Unknown')}")
+                        print(f"描述: {translate_to_chinese(asn.get('descr', 'Unknown'))}")
+                        print(f"国家: {asn.get('country', 'Unknown')}")
+                        print(f"类型: {translate_to_chinese(asn.get('type', 'Unknown'))}")
+                        print(f"滥用评分: {asn.get('abuser_score', 'Unknown')}")
+                        print(f"域名: {asn.get('domain', 'Unknown')}")
+                        print(f"滥用联系人: {asn.get('abuse', 'Unknown')}")
+                        print(f"更新时间: {asn.get('updated', 'Unknown')}")
+                        print(f"区域注册机构: {asn.get('rir', 'Unknown')}")
+                        print(f"是否活跃: {'是' if asn.get('active') else '否'}")
                     
-                    for field, chinese_name in abuse_fields.items():
-                        value = ip_data.get(field)
-                        if value and value != 'Unknown':
-                            print(f"{chinese_name}: {value}")
-                
-                # 数据中心信息
-                if ip_data.get('datacenter_name'):
-                    print("\n【数据中心信息】")
-                    dc_fields = {
-                        'datacenter_name': '数据中心',
-                        'datacenter_network': '网络'
-                    }
+                    # 公司信息
+                    if 'company' in ip_data:
+                        company = ip_data['company']
+                        print("\n【公司信息】")
+                        print(f"公司名称: {translate_to_chinese(company.get('name', 'Unknown'))}")
+                        print(f"域名: {company.get('domain', 'Unknown')}")
+                        print(f"类型: {translate_to_chinese(company.get('type', 'Unknown'))}")
+                        print(f"滥用评分: {company.get('abuser_score', 'Unknown')}")
+                        print(f"网络范围: {company.get('network', 'Unknown')}")
+                        print(f"WHOIS信息: {company.get('whois', 'Unknown')}")
                     
-                    for field, chinese_name in dc_fields.items():
-                        value = ip_data.get(field)
-                        if value and value != 'Unknown':
-                            print(f"{chinese_name}: {value}")
-                
-                # 其他信息
-                if ip_data.get('rir'):
-                    print(f"\n区域互联网注册机构: {ip_data['rir']}")
-                if ip_data.get('elapsed_ms'):
-                    print(f"查询耗时: {ip_data['elapsed_ms']}毫秒")
+                    # 滥用联系人信息
+                    if 'abuse' in ip_data:
+                        abuse = ip_data['abuse']
+                        print("\n【滥用联系人】")
+                        print(f"联系人: {translate_to_chinese(abuse.get('name', 'Unknown'))}")
+                        print(f"地址: {translate_to_chinese(abuse.get('address', 'Unknown'))}")
+                        print(f"邮箱: {abuse.get('email', 'Unknown')}")
+                        print(f"电话: {abuse.get('phone', 'Unknown')}")
                 
                 # 如果不是最后一个IP，添加分隔线
                 if i < len(ips):
